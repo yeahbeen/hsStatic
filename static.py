@@ -110,33 +110,38 @@ class Static(QWidget):
             if bob == "调酒师鲍勃":
                 self.ingame = True
         if self.ingame:
-            if self.hero == "":
-                sobj = re.search('Player.Play .*cardId=(.*HERO.*), cardName=(.*), zonePos=', s) #正常是这个
-                if sobj:
-                    if "Buddy" not in sobj.group(1):
-                        self.hero_id = sobj.group(1)
-                        self.hero = sobj.group(2)
-                        print(f'---------------your hero id:{self.hero_id}---------------------')
-                        print(f'---------------your hero:{self.hero}---------------------')
-                        self.tips.setText(f'你的英雄:{self.hero}')
-                        return
-                sobj = re.search('GameEventHandler.SetPlayerHero >> Player=(.*)', s) #中断重连的时候是这个
-                if sobj:
-                    hero = sobj.group(1)
-                    if hero != "BaconPHhero":
-                        self.hero = hero
-                        print(f'----------------your hero:{self.hero}---------------------')
-                        self.tips.setText(f'你的英雄:{self.hero}')
-                        # return
+            sobj = re.search('Player.Play .*cardId=(.*HERO.*), cardName=(.*), zonePos=', s) #正常是这个
+            if sobj:
+                if "Buddy" not in sobj.group(1):
+                    self.hero_id = sobj.group(1)
+                    self.hero = sobj.group(2)
+                    print(f'---------------your hero id:{self.hero_id}---------------------')
+                    print(f'---------------your hero:{self.hero}---------------------')
+                    self.tips.setText(f'你的英雄:{self.hero}')
+                    return
+            sobj = re.search('GameEventHandler.SetPlayerHero >> Player=(.*)', s) #中断重连的时候是这个
+            if sobj:
+                hero = sobj.group(1)
+                if hero != "BaconPHhero":
+                    self.hero = hero
+                    print(f'----------------your hero:{self.hero}---------------------')
+                    self.tips.setText(f'你的英雄:{self.hero}')
+                    # return
             sobj = re.search('(\d+:\d\d:\d\d)\|.*Player.PlayToGraveyard >> \[Player\] id=\d+, cardId=TB_BaconShop_3ofKindChecke, cardName=3ofKindCheckPlayerEnchant, zonePos=0,Info={turn=\d+, mark=Created, created=true, originalZone=',s)
             if sobj:
                 self.begintime = sobj.group(1)
-                print(f'---------------begin time:{self.begintime}---------------------------------------------------')
+                print(f'---------------begin time:{self.begintime}----------------------------------')
                 self.tips.setText(f'团战开始...')
                 self.player_dead = False
                 self.oppo_dead = False
                 self.found = False
                 self.normal_res = False
+                self.dead_id = ""
+                self.wr = 0
+                self.br = 0
+                self.tr = 0
+                self.lr = 0
+                self.dr = 0
                 # self.player_damge = 0
                 # self.oppo_damge = 0
                 self.running = True
@@ -148,8 +153,9 @@ class Static(QWidget):
                     # self.begintime = sobj.group(1)
                     self.oppo_id = sobj.group(2)
                     self.oppo = sobj.group(3)
-                    print(f'opponent id:{self.oppo_id}')
+                    print(f'your hero:{self.hero}')
                     print(f'opponent:{self.oppo}')
+                    print(f'opponent id:{self.oppo_id}')
                     self.tips.setText(f'团战开始,你的对手:{self.oppo}')
             sobj = re.search('WinRate=(.*)% \(Lethal=(.*)%\), TieRate=(.*)%, LossRate=(.*)% \(Lethal=(.*)%\)', s)
             if self.running and sobj:
@@ -162,9 +168,6 @@ class Static(QWidget):
                 # self.tips.setText(f'团战开始...')
                 # self.running = True
             if self.running and (s.find("Player.DeckToPlay") != -1 or s.find("Game ended...") != -1):
-                if s.find("Game ended...") != -1:
-                    self.hero = ""
-                    self.ingame = False
                 self.temps += s
                 self.running = False
                 sobj = re.search('Updating entities with attacker=(.*), defender=(.*)', self.temps)
@@ -190,34 +193,39 @@ class Static(QWidget):
                                 # self.tips.setText(f'本次团战运气好')
                                 # self.good.add()
                                 self.add_good()
-                            elif winner != self.hero and winner != "tie":
+                            # elif winner != self.hero and winner != "tie":
+                            elif winner == self.oppo:
                                 # print("bad luck!")
                                 # self.tips.setText(f'本次团战运气不好')
                                 # self.bad.add()
                                 self.add_bad()
-                            else:
+                            elif winner == "tie":
                                 # print("normal luck!")
                                 # self.tips.setText(f'本次团战运气正常')
                                 # self.normal.add()
                                 self.add_normal()
                         elif self.wr == self.tr: #赢平概率相等，结果应该是赢平，输了是运气不好
-                            if winner != self.hero and winner != "tie":
+                            # if winner != self.hero and winner != "tie":
+                            if winner == self.oppo:
                                 # print("bad luck!")
                                 # self.tips.setText(f'本次团战运气不好')
                                 # self.bad.add()
                                 self.add_bad()
-                            else:
+                            # else:
+                            elif winner == self.hero or winner == "tie":
                                 # print("normal luck!")
                                 # self.tips.setText(f'本次团战运气正常')
                                 # self.normal.add()
                                 self.add_normal()
                         else:   #概率都不等，结果应该是赢，输平都是运气不好
-                            if winner != self.hero or winner == "tie":
+                            # if winner != self.hero or winner == "tie":
+                            if winner == self.oppo or winner == "tie":
                                 # print("bad luck!")
                                 # self.tips.setText(f'本次团战运气不好')
                                 # self.bad.add()
                                 self.add_bad()
-                            else:
+                            # else:
+                            elif winner == self.hero:
                                 # print("normal luck!")
                                 # self.tips.setText(f'本次团战运气正常')
                                 # self.normal.add()
@@ -229,7 +237,8 @@ class Static(QWidget):
                                 # self.tips.setText(f'本次团战运气好')
                                 # self.good.add()
                                 self.add_good()
-                            else:
+                            # else:
+                            elif winner==self.oppo or winner == "tie":
                                 # print("normal luck!")
                                 # self.tips.setText(f'本次团战运气正常')
                                 # self.normal.add()
@@ -240,7 +249,8 @@ class Static(QWidget):
                                 # self.tips.setText(f'本次团战运气好')
                                 # self.good.add()
                                 self.add_good()
-                            else:
+                            # else:
+                            elif winner == self.oppo:
                                 # print("normal luck!")
                                 # self.tips.setText(f'本次团战运气正常')
                                 # self.normal.add()
@@ -251,36 +261,36 @@ class Static(QWidget):
                             # self.tips.setText(f'本次团战运气好')
                             # self.good.add()
                             self.add_good()
-                        elif winner != self.hero and winner != "tie":
+                        # elif winner != self.hero and winner != "tie":
+                        elif winner == self.oppo:
                             # print("bad luck!")
                             # self.tips.setText(f'本次团战运气不好')
                             # self.bad.add()
                             self.add_bad()
-                        else:
+                        elif winner == "tie":
+                        # else:
                             # print("normal luck!")
                             # self.tips.setText(f'本次团战运气正常')
                             # self.normal.add()
                             self.add_normal()
                 #判断死亡
                 if self.found and self.normal_res: #有找到伤害信息并且通过胜率判断是普通时才判断死亡
-                    if not self.oppo_dead and self.br > 50:
+                    # if not self.oppo_dead and self.br > 50:
+                    if self.br > 50 and self.dead_id != self.oppo_id:
                         self.add_bad()
                         self.normal.delete() #normal减1
-                    elif self.oppo_dead and self.br <= 50:
-                        # print("good luck!")
-                        # self.tips.setText(f'本次团战运气好')
-                        # self.good.add()
+                    elif self.br <= 50 and self.dead_id == self.oppo_id:
                         self.add_good()
                         self.normal.delete() #normal减1
-                    elif self.player_dead and self.dr <= 50:
-                        # print("bad luck!")
-                        # self.tips.setText(f'本次团战运气不好')
-                        # self.bad.add()
+                    elif self.dr <= 50 and self.dead_id == self.hero_id:
                         self.add_bad()
                         self.normal.delete() #normal减1
-                    elif not self.player_dead and self.dr > 50:
+                    elif self.dr > 50 and self.dead_id != self.hero_id:
                         self.add_good()
                         self.normal.delete() #normal减1
+                if s.find("Game ended...") != -1:
+                    self.hero = ""
+                    self.ingame = False
             if self.running:
                 self.temps += s
                 
@@ -304,13 +314,16 @@ class Static(QWidget):
         self.normal_res = True
         
     def showText2(self):
+        file2 = 'D:\\Game\\Hearthstone\\Logs\\Power.log'
+        # file2 = 'Power.log'
         if not self.f2:
-            file2 = 'D:\\Game\\Hearthstone\\Logs\\Power.log'
-            # file2 = 'Power.log'
             if os.path.exists(file2):
                 self.f2= open(file2,encoding="utf8")
             else:
                 return
+        # print(f'f2.now:{self.f2.tell()},filesize:{os.path.getsize(file2)}')
+        if os.path.getsize(file2) < self.f2.tell(): #重启了
+            self.f2.seek(0)
         self.s0 = self.s  #这个结果出的太快，用上一个5s的数据
         self.s = self.f2.read()
         if not self.running or self.found: #没在对战或在这次对战中已经找到了就不找了
@@ -331,6 +344,7 @@ class Static(QWidget):
                 print("something wrong")
         '''
         #查找伤害信息，判断是否死亡
+        # print(self.s0)
         sobj = re.finditer('GameState.DebugPrintPower\(\) - +TAG_CHANGE Entity=\[entityName=(.*) id=\d+ zone=PLAY zonePos=0 cardId=(.*HERO.*) player=\d+\] tag=DAMAGE value=(\d+)', self.s0)
         for i in sobj:
             self.found = True
@@ -340,12 +354,17 @@ class Static(QWidget):
             else:
                 health = 40
             if int(i.group(3))>=health:
+                self.dead_id = i.group(2)
+                print(f'{i.group(1)} dead')
+                '''
                 if i.group(2) == self.oppo_id:
                     print("opponent dead")
                     self.oppo_dead = True
-                elif i.group(2) == self.hero_id:
+                # elif i.group(2) == self.hero_id:
+                else:
                     print("player dead")
                     self.player_dead = True
+                '''
         # print('===============end===================')
         
     def clear(self):
@@ -374,22 +393,22 @@ class Static(QWidget):
             
     def changepersent(self):
         if self.good.luck+self.bad.luck+self.normal.luck == 0:
-            self.good.persent.setText("0%")
-            self.bad.persent.setText("0%")
-            self.normal.persent.setText("0%")
+            self.good.persent.setText("(0%)")
+            self.bad.persent.setText("(0%)")
+            self.normal.persent.setText("(0%)")
         else:
-            self.good.persent.setText(str(round(self.good.luck/(self.good.luck+self.bad.luck+self.normal.luck)*100,1))+"%")
-            self.bad.persent.setText(str(round(self.bad.luck/(self.good.luck+self.bad.luck+self.normal.luck)*100,1))+"%")
-            self.normal.persent.setText(str(round(self.normal.luck/(self.good.luck+self.bad.luck+self.normal.luck)*100,1))+"%")
+            self.good.persent.setText("("+str(round(self.good.luck/(self.good.luck+self.bad.luck+self.normal.luck)*100,1))+"%)")
+            self.bad.persent.setText("("+str(round(self.bad.luck/(self.good.luck+self.bad.luck+self.normal.luck)*100,1))+"%)")
+            self.normal.persent.setText("("+str(round(self.normal.luck/(self.good.luck+self.bad.luck+self.normal.luck)*100,1))+"%)")
             
         if self.good.total+self.bad.total+self.normal.total == 0:
-            self.good.totalpersent.setText("0%")
-            self.bad.totalpersent.setText("0%")
-            self.normal.totalpersent.setText("0%")
+            self.good.totalpersent.setText("(0%)")
+            self.bad.totalpersent.setText("(0%)")
+            self.normal.totalpersent.setText("(0%)")
         else:
-            self.good.totalpersent.setText(str(round(self.good.total/(self.good.total+self.bad.total+self.normal.total)*100,1))+"%")
-            self.bad.totalpersent.setText(str(round(self.bad.total/(self.good.total+self.bad.total+self.normal.total)*100,1))+"%")
-            self.normal.totalpersent.setText(str(round(self.normal.total/(self.good.total+self.bad.total+self.normal.total)*100,1))+"%")
+            self.good.totalpersent.setText("("+str(round(self.good.total/(self.good.total+self.bad.total+self.normal.total)*100,1))+"%)")
+            self.bad.totalpersent.setText("("+str(round(self.bad.total/(self.good.total+self.bad.total+self.normal.total)*100,1))+"%)")
+            self.normal.totalpersent.setText("("+str(round(self.normal.total/(self.good.total+self.bad.total+self.normal.total)*100,1))+"%)")
         self.saveconfig()
 
     def closeEvent(self,e):
